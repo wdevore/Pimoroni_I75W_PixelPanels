@@ -19,3 +19,9 @@ The display's origin is at the top left.
                        |               (width-1,height-1)
                        +Y
 ```
+
+# Micropython
+
+## Picographics
+[Picographics](https://github.com/pimoroni/pimoroni-pico/blob/main/micropython/modules/picographics/README.md#rectangle) API
+

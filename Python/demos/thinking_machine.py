@@ -31,7 +31,6 @@ buf = [[initial_value for col in range(N_COLS)] for row in range(N_ROWS)]
 
 x = 0
 y = 0
-chanceOfOn = False
 
 # What we want is to randomly choose a pixel that is on and turn it off.
 # This means we need to "scan" for an On pixel.
