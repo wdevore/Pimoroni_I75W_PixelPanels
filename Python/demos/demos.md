@@ -1,10 +1,14 @@
 # Description
 These are my demos based on the examples
 
-- Particles
-  - Fire works
+A nice video with demo examples:
+[Youtube ](https://www.youtube.com/watch?v=wam95VhYsx0)
+
+- Particle Systems
+  - Fire works <span style="color: orange; font-weight: bold;"><== WORKING</span>
   - Ship flying around
   - Sand piling up
+  - Different types of emitters moving around
 - Evolution
   - GAs
 - 3D
@@ -29,11 +33,11 @@ These are my demos based on the examples
   - Thinking machine 3.
       - Add binary counters.
       - Phade in/out effects.
-- Phadings  appearing and disappearing
+- Phades: appearing and disappearing
   - Circles
   - Squares
 - Drops
-  - Pixels Orange bounce <span style="color: orange; font-weight: bold;"><== WORKING</span>
+  - Pixels Orange bounce <span style="color: lime; font-weight: bold;">DONE</span>
   - Digits
   - Matrix
 - Simulated games
@@ -44,13 +48,19 @@ These are my demos based on the examples
   - Lunar lander
   - Twix
   - Pixel barriers (particle game) Climb as high as possible
-  - Alien abduction
+  - Alien abduction (like Defender)
+  - Platform climber
+- Drifters
+  - Bubbles (some translucent)
+  - Lines moving horz/vert with fading trails
 - Scenes
   - Snow (blowing sideways)
   - Snow flakes
   - Target moving around. Lines touch edges
   - Buggy driving around lunar landscape (top-down)
   - Objects with fading trails
+  - Earthquakes
+  - Figures popping out from the sides (peeking out)
 - Collisions
  - Squares
  - Circles
