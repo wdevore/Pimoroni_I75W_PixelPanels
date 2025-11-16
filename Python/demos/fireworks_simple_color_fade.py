@@ -1,5 +1,11 @@
 import sys
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Description:
+# A demo to test a simple particle system with different colors.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 # Define a global flag
 IS_MICROPYTHON = sys.implementation.name == 'micropython'
 
@@ -59,12 +65,43 @@ else:
 # Define the duration you want the loop to run (in seconds)
 RUN_DURATION_MS = 10000  # Run for N seconds
 
-MAX_PARTICLE_LIFETIME = 1.5
-MAX_PARTICLE_SPEED = 2.0
-MAX_EXPLOSIVE_PARTICLES = 100
+MAX_PARTICLE_LIFETIME = 2.5
+MAX_PARTICLE_SPEED = 5.0
+MAX_EXPLOSIVE_PARTICLES = 200
 
-# A demo to test a simple particle system. The emitter sits in the middle
-# and spews particles.
+if IS_MICROPYTHON:
+    # Store colors as RGB tuples, not pre-created pens
+    COLORS = [
+        (255, 0, 0), # red
+        (0, 255, 0), # green
+        (0, 0, 255), # blue
+        (255, 255, 0), # yellow
+        (255, 0, 255), # magenta
+        (0, 255, 255), # cyan
+        (255, 255, 255), # white
+        (128, 128, 128), # gray
+        (128, 0, 0), # dark red
+        (0, 128, 0), # dark green
+        (0, 0, 128), # dark blue
+        (128, 128, 0), # dark yellow
+        (128, 0, 128), # dark magenta
+        (0, 128, 128), # dark cyan
+        (192, 192, 192), # light gray
+        (255, 128, 0), # orange
+        (128, 0, 128), # purple
+        (0, 128, 128), # teal
+        (128, 128, 0), # olive
+        (128, 0, 128), # indigo
+        (0, 128, 128), # aqua
+    ]
+
+def lerp(min: float, max: float, t: float) -> float:
+    # Another way to write below equation is: min*(1.0-t) + max*t
+    # refactoring as:
+    # min + t*max - t*min
+    # (min - t*min) + t*max
+    # min(1.0-t) + t*max
+    return min + (max - min) * t
 
 # ------------------------------------------------------------------------
 class Vector:
@@ -75,6 +112,10 @@ class Vector:
     def setByAngle(self, angleRadians: float):
         self.x = math.cos(angleRadians)
         self.y = math.sin(angleRadians)
+
+v1 = Vector(0.0, 0.0)
+v2 = Vector(0.0, 0.0)
+v3 = Vector(0.0, 0.0)
 
 def Add(v1: Vector, v2: Vector, v3: Vector):
     v3.x = v1.x + v2.x
@@ -120,6 +161,8 @@ class Velocity:
 # A particle is a Node from Ranger
 class Particle:
     died: bool = False
+    original_color: tuple = (0,0,0) # Store the initial color as (R,G,B)
+    current_pen: any = None # This will hold the pen handle for the current frame
 
     def __init__(self, elapsed: float, lifespan: float, active: bool, position: Point, velocity: Point):
         self.elapsed = elapsed
@@ -127,10 +170,65 @@ class Particle:
         self.active = active
         self.position = position
         self.velocity = velocity
+        self.current_pen = BLACK
 
     def update(self, dt: float):
         self.elapsed += dt
         self.active = self.elapsed < self.lifespan
+        # Use lifespan to lerp from start color to Black
+        t = self.calculate_lifespan_factor(self.elapsed, self.lifespan)
+        (r, g, b) = self.lerp_to_black(self.original_color, t)
+        self.current_pen = display.create_pen(r, g, b)
+
+    @staticmethod
+    def calculate_lifespan_factor(current_age_ms: int, total_lifespan_ms: int) -> float:
+        """
+        Computes the normalized lifespan factor (t) for interpolation.
+        
+        Args:
+            current_age_ms: The time elapsed since the particle's creation (in milliseconds).
+            total_lifespan_ms: The maximum allowed time for the particle to live (in milliseconds).
+            
+        Returns:
+            A float t between 0.0 and 1.0 (clamped).
+        """
+        
+        # 1. Calculate the raw ratio
+        # Ensure float division by converting one operand to float (though Python 3 does this automatically)
+        raw_t = current_age_ms / total_lifespan_ms
+        
+        # 2. Clamp the value between 0.0 and 1.0
+        # This prevents t from going below 0 (before birth) or above 1.0 (after death)
+        t = max(0.0, min(1.0, raw_t))
+        
+        return t
+
+    @staticmethod
+    def lerp_to_black(start_color_rgb: tuple, t: float) -> tuple:
+        """
+        Linearly interpolates a color towards black (0, 0, 0).
+        
+        Args:
+            start_color_rgb: A tuple (R, G, B) with values from 0-255.
+            t: The interpolation factor, 0.0 (start color) to 1.0 (black).
+            
+        Returns:
+            A new color tuple (R, G, B).
+        """
+        
+        # Ensure t is clamped between 0.0 and 1.0
+        t = max(0.0, min(1.0, t))
+        
+        # Calculate the intensity factor (1.0 at start, 0.0 at black)
+        intensity_factor = 1.0 - t
+        
+        # Apply the factor to each component and round to the nearest integer
+        # (Since RGB components must be integers)
+        R_new = int(round(start_color_rgb[0] * intensity_factor))
+        G_new = int(round(start_color_rgb[1] * intensity_factor))
+        B_new = int(round(start_color_rgb[2] * intensity_factor))
+    
+        return (R_new, G_new, B_new)
 
     def reset(self):
         self.elapsed = 0.0
@@ -148,10 +246,6 @@ class Particle:
             self.velocity.applyToPoint(self.position)
 
         return self.active
-
-v1 = Vector(0.0, 0.0)
-v2 = Vector(0.0, 0.0)
-v3 = Vector(0.0, 0.0)
 
 # ------------------------------------------------------------------------
 # Activator
@@ -235,7 +329,7 @@ class ParticleSystem:
         if IS_MICROPYTHON:
             for p in self.particles:
                 if (p.active):
-                    display.set_pen(ORANGE)
+                    display.set_pen(p.current_pen)
                     display.pixel(int(p.position.x), int(p.position.y))
         else:
             print("DRAW ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -256,13 +350,14 @@ class ExplosiveParticleSystem(ParticleSystem):
     def generate(self):
         super().generate()
         for i in range(0, self.numberOfParticles):
-            self.addParticle(
-                Particle(
-                    0.0, 5.0, False, 
+            particle = Particle(
+                    0.0, MAX_PARTICLE_LIFETIME, False, 
                     Point(0.0, 0.0), 
                     Velocity(MAX_PARTICLE_SPEED, 0.0, 1.0, Vector(1.0, 0.0), False)
                 )
-            )
+            # Assign the original color tuple to the particle
+            particle.original_color = COLORS[random.randint(0, len(COLORS)-1)]
+            self.addParticle(particle)
 
     def update(self, dt: float) -> bool:
         if (self.initialTrigger):
@@ -273,7 +368,7 @@ class ExplosiveParticleSystem(ParticleSystem):
             # The system is active. Evaluate current particles
             for p in self.particles:
                 active = p.evaluate(dt)
-                if (not active and not p.died): # Did it just die AND not died already
+                if (not active and not p.died): # Did it die AND not died already
                     self.particleCount -= 1
                     # We have recognized its death. Now it can officially die!
                     p.died = True

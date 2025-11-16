@@ -1,5 +1,12 @@
 import sys
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Description:
+# Multiple systems exploding in random locations.
+# When a system complete its explosion it is reset to a new location.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 # Define a global flag
 IS_MICROPYTHON = sys.implementation.name == 'micropython'
 
@@ -60,11 +67,41 @@ else:
 RUN_DURATION_MS = 10000  # Run for N seconds
 
 MAX_PARTICLE_LIFETIME = 1.5
-MAX_PARTICLE_SPEED = 2.0
-MAX_EXPLOSIVE_PARTICLES = 100
+MAX_PARTICLE_SPEED = 1.5
+MAX_EXPLOSIVE_PARTICLES = 20
+MAX_NUMBER_OF_SYSTEMS = 10
 
-# A demo to test a simple particle system. The emitter sits in the middle
-# and spews particles.
+if IS_MICROPYTHON:
+    COLORS = [
+        display.create_pen(255, 0, 0), # red
+        display.create_pen(0, 255, 0), # green
+        display.create_pen(0, 0, 255), # blue
+        display.create_pen(255, 255, 0), # yellow
+        display.create_pen(255, 0, 255), # magenta
+        display.create_pen(0, 255, 255), # cyan
+        display.create_pen(255, 255, 255), # white
+        display.create_pen(128, 128, 128), # gray
+        display.create_pen(128, 0, 0), # dark red
+        display.create_pen(0, 128, 0), # dark green
+        display.create_pen(0, 0, 128), # dark blue
+        display.create_pen(128, 128, 0), # dark yellow
+        display.create_pen(128, 0, 128), # dark magenta
+        display.create_pen(0, 128, 128), # dark cyan
+        display.create_pen(192, 192, 192), # light gray
+        display.create_pen(192, 0, 0), # light red
+        display.create_pen(0, 192, 0), # light green
+        display.create_pen(0, 0, 192), # light blue
+        display.create_pen(192, 192, 0), # light yellow
+        display.create_pen(192, 0, 192), # light magenta
+        display.create_pen(0, 192, 192), # light cyan
+        display.create_pen(255, 128, 0), # orange
+        display.create_pen(128, 0, 128), # purple
+        display.create_pen(0, 128, 128), # teal
+        display.create_pen(128, 128, 0), # olive
+        display.create_pen(128, 0, 128), # indigo
+        display.create_pen(0, 128, 128), # aqua
+
+    ]
 
 # ------------------------------------------------------------------------
 class Vector:
@@ -75,6 +112,10 @@ class Vector:
     def setByAngle(self, angleRadians: float):
         self.x = math.cos(angleRadians)
         self.y = math.sin(angleRadians)
+
+v1 = Vector(0.0, 0.0)
+v2 = Vector(0.0, 0.0)
+v3 = Vector(0.0, 0.0)
 
 def Add(v1: Vector, v2: Vector, v3: Vector):
     v3.x = v1.x + v2.x
@@ -117,9 +158,8 @@ class Velocity:
         point.y = v3.y
 
 # ------------------------------------------------------------------------
-# A particle is a Node from Ranger
+# A particle is a Node like concept from Ranger
 class Particle:
-    died: bool = False
 
     def __init__(self, elapsed: float, lifespan: float, active: bool, position: Point, velocity: Point):
         self.elapsed = elapsed
@@ -127,6 +167,8 @@ class Particle:
         self.active = active
         self.position = position
         self.velocity = velocity
+        self.died: bool = False
+        self.color: any = None
 
     def update(self, dt: float):
         self.elapsed += dt
@@ -148,10 +190,6 @@ class Particle:
             self.velocity.applyToPoint(self.position)
 
         return self.active
-
-v1 = Vector(0.0, 0.0)
-v2 = Vector(0.0, 0.0)
-v3 = Vector(0.0, 0.0)
 
 # ------------------------------------------------------------------------
 # Activator
@@ -179,25 +217,6 @@ class Emitter360(Emitter):
         particle.velocity.setDirectionByAngle(self.direction)
         particle.velocity.magnitude = self.speed
 
-
-class EmitterPlusX(Emitter):
-    def __init__(self, maxLifespan=MAX_PARTICLE_LIFETIME, maxSpeed=MAX_PARTICLE_SPEED):
-        super().__init__(
-            0.0, # +X axis
-            maxSpeed)
-        self.maxLifespan = maxLifespan
-        self.maxSpeed = maxSpeed
-
-    def activate(self, particle: Particle, epiCenter: Point):
-        self.direction =  0.0
-        self.speed  =  random.uniform(0.0, 1.0) * self.maxSpeed
-
-        particle.lifespan = random.uniform(0.0, 1.0) * self.maxLifespan * 1000.0
-        particle.reset()
-        particle.position.x = epiCenter.x
-        particle.position.y = epiCenter.y
-        particle.active = True
-
 # ------------------------------------------------------------------------
 class ParticleSystem:
     def __init__(self, numberOfParticles: int, autoTrigger: bool, emitter: Emitter):
@@ -205,12 +224,11 @@ class ParticleSystem:
         self.autoTrigger = autoTrigger
         self.emitter = emitter
         self.particles: Particle = []
-        # This counts how many particles are active
         self.particleCount = 0
         self.epiCenter: Point = Point(0.0, 0.0)
         self.active = False
         self.initialTrigger = True
-    
+
     def addParticle(self, particle: Particle):
         self.particles.append(particle)
 
@@ -235,14 +253,14 @@ class ParticleSystem:
         if IS_MICROPYTHON:
             for p in self.particles:
                 if (p.active):
-                    display.set_pen(ORANGE)
+                    display.set_pen(p.color)
                     display.pixel(int(p.position.x), int(p.position.y))
-        else:
-            print("DRAW ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-            for p in self.particles:
-                if (p.active):
-                    print(f"pos: {p.position.x}, {p.position.y}")
-                print(f"ela: E:{p.elapsed}, L:{p.lifespan}, A:{p.active}, D:{p.died}")
+        # else:
+        #     print("DRAW ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        #     for p in self.particles:
+        #         if (p.active):
+        #             print(f"pos: {p.position.x}, {p.position.y}")
+        #         print(f"ela: E:{p.elapsed}, L:{p.lifespan}, A:{p.active}, D:{p.died}")
 
 # ------------------------------------------------------------------------
 # If autotrigger is On then we only want to trigger another explosion if
@@ -256,13 +274,16 @@ class ExplosiveParticleSystem(ParticleSystem):
     def generate(self):
         super().generate()
         for i in range(0, self.numberOfParticles):
-            self.addParticle(
-                Particle(
-                    0.0, 5.0, False, 
+            p = Particle(
+                    0.0, MAX_PARTICLE_LIFETIME, False, 
                     Point(0.0, 0.0), 
                     Velocity(MAX_PARTICLE_SPEED, 0.0, 1.0, Vector(1.0, 0.0), False)
                 )
-            )
+            if IS_MICROPYTHON:
+                p.color = COLORS[random.randint(0, len(COLORS)-1)]
+            else:
+                p.color = 0
+            self.addParticle(p)
 
     def update(self, dt: float) -> bool:
         if (self.initialTrigger):
@@ -273,7 +294,7 @@ class ExplosiveParticleSystem(ParticleSystem):
             # The system is active. Evaluate current particles
             for p in self.particles:
                 active = p.evaluate(dt)
-                if (not active and not p.died): # Did it just die AND not died already
+                if (not active and not p.died): # Did it die AND not died already
                     self.particleCount -= 1
                     # We have recognized its death. Now it can officially die!
                     p.died = True
@@ -295,69 +316,24 @@ class ExplosiveParticleSystem(ParticleSystem):
             self.particleCount += 1
 
 # ------------------------------------------------------------------------
-class OneshotParticleSystem(ParticleSystem):
-
-    def __init__(self, numberOfParticles: int, autoTrigger: bool, emitter: Emitter):
-        super().__init__(numberOfParticles, autoTrigger, emitter)
-
-    def generate(self):
-        super().generate()
-        self.addParticle(
-            Particle(
-                0.0, 5.0, False, 
-                Point(0.0, 0.0), 
-                Velocity(MAX_PARTICLE_SPEED, 0.0, 1.0, Vector(1.0, 0.0), False)
-            )
-        )
-
-    def update(self, dt: float) -> bool:
-        # The system is either actively evaluating particles or all particles have
-        # died which deactivates the system. The system can reactivate by
-        # activating particles via the trigger if autoTrigger is set.
-
-        if (self.initialTrigger):
-            # The system is starting.
-            self.initialTrigger = False
-            self.trigger()
-        else:
-            # The system is active. Evaluate current particle
-            for p in self.particles:
-                active = p.evaluate(dt)
-                if (not active): # Did it die
-                    self.particleCount -= 1
-                self.active = self.isActive()
-                if (not self.active):
-                    # The system has become in-active.
-                    if (self.autoTrigger):
-                        self.trigger()
-                break
-        
-        return self.active
-
-    def trigger(self):
-        # print("============ Triggering ==================")
-        self.reset()
-        self.active = True
-
-        for p in self.particles:
-            self.emitter.activate(p, self.epiCenter)
-            # Inc count because a new particle has become active
-            self.particleCount += 1
-            break
-
-# ------------------------------------------------------------------------
 
 class Demo:
+    # These are coming amoung instances of Demo. This is because there is only
+    # one instance of Demo.
     prevTicks = get_monotonic_ms()
-    particleSystem: ParticleSystem = None
+    particleSystems: ParticleSystem = []
 
     def __init__(self):
         self.generate()
 
     def generate(self):
-        self.particleSystem = ExplosiveParticleSystem(MAX_EXPLOSIVE_PARTICLES, True, Emitter360())
-        self.particleSystem.epiCenter = Point(WIDTH / 2.0, HEIGHT / 2.0)
-        self.particleSystem.generate()
+        for i in range(0, MAX_NUMBER_OF_SYSTEMS):
+            ps = ExplosiveParticleSystem(MAX_EXPLOSIVE_PARTICLES, False, Emitter360())
+            ps.epiCenter = Point(
+                random.randint(10, WIDTH-1), 
+                random.randint(10, HEIGHT-1))
+            ps.generate()
+            self.particleSystems.append(ps)
 
     def reset(self):
         # Get the starting time
@@ -380,7 +356,17 @@ class Demo:
                 universal_sleep_ms(17)
             
     def update(self, dt: float) -> bool:
-        return self.particleSystem.update(dt)
+        for ps in self.particleSystems:
+            active = ps.update(dt)
+            if (not active):
+                # print("resetting")
+                ps.resetToInitial()
+                ps.epiCenter = Point(
+                    random.randint(10, WIDTH-1), 
+                    random.randint(10, HEIGHT-1)
+                )
+
+        return True # Keep running
 
 
     # Draw the particles
@@ -389,7 +375,8 @@ class Demo:
             display.set_pen(BLACK)
             display.clear()
 
-        self.particleSystem.draw()
+        for ps in self.particleSystems:
+            ps.draw()
 
         if IS_MICROPYTHON:
             i75.update()

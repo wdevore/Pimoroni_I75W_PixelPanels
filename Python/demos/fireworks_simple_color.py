@@ -1,5 +1,11 @@
 import sys
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Description:
+# A demo to test a simple particle system with different colors.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 # Define a global flag
 IS_MICROPYTHON = sys.implementation.name == 'micropython'
 
@@ -25,7 +31,7 @@ if IS_MICROPYTHON:
     BLACK = display.create_pen(0, 0, 0)
 
     # Universal Time Abstraction
-    def get_monotonic_ms():
+    def get_monotonic_ms() -> any:
         # MicroPython uses ticks_ms() for its monotonic clock
         return time.ticks_ms()
     
@@ -43,7 +49,7 @@ else:
     simFrameCount: int = 0
 
     # Universal Time Abstraction
-    def get_monotonic_ms():
+    def get_monotonic_ms() -> int:
         global simFrameCount
         # Desktop Python uses time.monotonic() and converts to milliseconds
         sfc = simFrameCount 
@@ -60,19 +66,32 @@ else:
 RUN_DURATION_MS = 10000  # Run for N seconds
 
 MAX_PARTICLE_LIFETIME = 1.5
-MAX_PARTICLE_SPEED = 0.5
-MAX_EXPLOSIVE_PARTICLES = 50
+MAX_PARTICLE_SPEED = 1.0
+MAX_EXPLOSIVE_PARTICLES = 100
 
-# A demo to test a simple particle system. The emitter sits in the middle
-# and spews particles.
-
-def lerp(min: float, max: float, t: float):
-    # Another to write below equation is: min*(1.0-t) + max*t
-    # Reordering as:
-    # min + t*max - t*min
-    # (min - t*min) + t*max
-    # min(1.0-t) + t*max
-    return min + (max - min) * t
+COLORS = [
+    display.create_pen(255, 0, 0), # red
+    display.create_pen(0, 255, 0), # green
+    display.create_pen(0, 0, 255), # blue
+    display.create_pen(255, 255, 0), # yellow
+    display.create_pen(255, 0, 255), # magenta
+    display.create_pen(0, 255, 255), # cyan
+    display.create_pen(255, 255, 255), # white
+    display.create_pen(128, 128, 128), # gray
+    display.create_pen(128, 0, 0), # dark red
+    display.create_pen(0, 128, 0), # dark green
+    display.create_pen(0, 0, 128), # dark blue
+    display.create_pen(128, 128, 0), # dark yellow
+    display.create_pen(128, 0, 128), # dark magenta
+    display.create_pen(0, 128, 128), # dark cyan
+    display.create_pen(192, 192, 192), # light gray
+    display.create_pen(192, 0, 0), # light red
+    display.create_pen(0, 192, 0), # light green
+    display.create_pen(0, 0, 192), # light blue
+    display.create_pen(192, 192, 0), # light yellow
+    display.create_pen(192, 0, 192), # light magenta
+    display.create_pen(0, 192, 192), # light cyan
+]
 
 # ------------------------------------------------------------------------
 class Vector:
@@ -83,6 +102,10 @@ class Vector:
     def setByAngle(self, angleRadians: float):
         self.x = math.cos(angleRadians)
         self.y = math.sin(angleRadians)
+
+v1 = Vector(0.0, 0.0)
+v2 = Vector(0.0, 0.0)
+v3 = Vector(0.0, 0.0)
 
 def Add(v1: Vector, v2: Vector, v3: Vector):
     v3.x = v1.x + v2.x
@@ -99,12 +122,6 @@ class Point:
 # Velocity's direction is alway defined relative to the +X axis.
 # Default direction is +X axis.
 class Velocity:
-    magnitude: float
-    minMag: float
-    maxMag: float
-    direction: Vector
-    limitMag: bool
-
     def __init__(self, magnitude: float, minMag: float, maxMag: float, direction: Vector, limitMag: bool):
         self.magnitude = magnitude
         self.minMag = minMag
@@ -134,6 +151,7 @@ class Velocity:
 # A particle is a Node from Ranger
 class Particle:
     died: bool = False
+    color: any = None
 
     def __init__(self, elapsed: float, lifespan: float, active: bool, position: Point, velocity: Point):
         self.elapsed = elapsed
@@ -148,24 +166,20 @@ class Particle:
 
     def reset(self):
         self.elapsed = 0.0
-        self.active = True
+        self.active = False
         self.died = False
 
     def setVelocity(self, angleRadians: float, speed: float):
         self.velocity.setDirectionByAngle(angleRadians)
         self.velocity.magnitude = speed
 
-    def evaluate(self, dt: float):
+    def evaluate(self, dt: float) -> bool:
         self.update(dt)
         # Update particle's position as long as it is active.
         if (self.active):
             self.velocity.applyToPoint(self.position)
 
         return self.active
-
-v1 = Vector(0.0, 0.0)
-v2 = Vector(0.0, 0.0)
-v3 = Vector(0.0, 0.0)
 
 # ------------------------------------------------------------------------
 # Activator
@@ -214,17 +228,16 @@ class EmitterPlusX(Emitter):
 
 # ------------------------------------------------------------------------
 class ParticleSystem:
-    particles: Particle = []
-    # This counts how many particles are active
-    particleCount = 0
-    epiCenter: Point = Point(0.0, 0.0)
-    active = False
-    initialTrigger = True
-
     def __init__(self, numberOfParticles: int, autoTrigger: bool, emitter: Emitter):
         self.numberOfParticles = numberOfParticles
         self.autoTrigger = autoTrigger
         self.emitter = emitter
+        self.particles: Particle = []
+        # This counts how many particles are active
+        self.particleCount = 0
+        self.epiCenter: Point = Point(0.0, 0.0)
+        self.active = False
+        self.initialTrigger = True
     
     def addParticle(self, particle: Particle):
         self.particles.append(particle)
@@ -232,7 +245,7 @@ class ParticleSystem:
     def update(self, dt: float) -> bool:
         return False
 
-    def isActive(self):
+    def isActive(self) -> bool:
         return self.particleCount > 0
 
     def generate(self):
@@ -250,7 +263,7 @@ class ParticleSystem:
         if IS_MICROPYTHON:
             for p in self.particles:
                 if (p.active):
-                    display.set_pen(ORANGE)
+                    display.set_pen(p.color)
                     display.pixel(int(p.position.x), int(p.position.y))
         else:
             print("DRAW ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -271,13 +284,13 @@ class ExplosiveParticleSystem(ParticleSystem):
     def generate(self):
         super().generate()
         for i in range(0, self.numberOfParticles):
-            self.addParticle(
-                Particle(
-                    0.0, 5.0, False, 
+            particle = Particle(
+                    0.0, MAX_PARTICLE_LIFETIME, False, 
                     Point(0.0, 0.0), 
                     Velocity(MAX_PARTICLE_SPEED, 0.0, 1.0, Vector(1.0, 0.0), False)
                 )
-            )
+            particle.color = COLORS[random.randint(0, len(COLORS)-1)]
+            self.addParticle(particle)
 
     def update(self, dt: float) -> bool:
         if (self.initialTrigger):
