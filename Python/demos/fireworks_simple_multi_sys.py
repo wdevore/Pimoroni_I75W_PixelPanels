@@ -330,8 +330,8 @@ class Demo:
         for i in range(0, MAX_NUMBER_OF_SYSTEMS):
             ps = ExplosiveParticleSystem(MAX_EXPLOSIVE_PARTICLES, False, Emitter360())
             ps.epiCenter = Point(
-                random.randint(10, WIDTH-1), 
-                random.randint(10, HEIGHT-1))
+                random.randint(10, WIDTH-1-10), 
+                random.randint(10, HEIGHT-1-10))
             ps.generate()
             self.particleSystems.append(ps)
 
